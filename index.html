@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>歯周病治療 算定チェッカー（令和8年度改定対応）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Hiragino Kaku Gothic Pro', 'Meiryo', sans-serif;
+    background: #f0f4f8;
+    color: #1a2e44;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  .header {
+    background: linear-gradient(135deg, #0d5c8a, #1a8cbf);
+    color: white;
+    width: 100%;
+    max-width: 760px;
+    border-radius: 14px 14px 0 0;
+    padding: 22px 28px;
+    margin-top: 10px;
+  }
+  .header h1 { font-size: 1.3em; font-weight: 700; margin-bottom: 4px; }
+  .header .sub { font-size: 0.82em; opacity: 0.85; }
+  .badge {
+    display: inline-block;
+    background: #ff6b35;
+    color: white;
+    font-size: 0.72em;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .chat-container {
+    background: white;
+    width: 100%;
+    max-width: 760px;
+    min-height: 500px;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid #d0dce8;
+    border-right: 1px solid #d0dce8;
+  }
+  .messages {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .msg {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    animation: fadeIn 0.35s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .msg.bot .avatar {
+    background: #0d5c8a;
+    color: white;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1em; flex-shrink: 0;
+  }
+  .msg.user { flex-direction: row-reverse; }
+  .msg.user .avatar {
+    background: #e8f4fd;
+    color: #0d5c8a;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1em; flex-shrink: 0;
+  }
+  .bubble {
+    max-width: 84%;
+    padding: 12px 16px;
+    border-radius: 14px;
+    font-size: 0.92em;
+    line-height: 1.7;
+  }
+  .msg.bot .bubble {
+    background: #eaf3fb;
+    border-top-left-radius: 4px;
+    color: #1a2e44;
+  }
+  .msg.user .bubble {
+    background: #0d5c8a;
+    color: white;
+    border-top-right-radius: 4px;
+  }
+  .options-area {
+    padding: 14px 20px 20px;
+    border-top: 1px solid #e8eef4;
+    background: #f8fafc;
+  }
+  .options-label {
+    font-size: 0.8em;
+    color: #6b7f96;
+    margin-bottom: 10px;
+  }
+  .options-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .opt-btn {
+    background: white;
+    border: 2px solid #0d5c8a;
+    color: #0d5c8a;
+    padding: 9px 16px;
+    border-radius: 22px;
+    cursor: pointer;
+    font-size: 0.88em;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .opt-btn:hover, .opt-btn.selected {
+    background: #0d5c8a;
+    color: white;
+  }
+  /* Result section */
+  .result-section {
+    background: #f8fafc;
+    border: 1px solid #c8d8e8;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-top: 6px;
+    font-size: 0.88em;
+  }
+  .result-section h3 {
+    font-size: 1em;
+    color: #0d5c8a;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #0d5c8a;
+  }
+  .item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 7px 4px;
+    border-bottom: 1px dashed #dde8f0;
+    gap: 10px;
+  }
+  .item-row:last-child { border-bottom: none; }
+  .item-name { flex: 1; font-weight: 600; }
+  .item-note { font-size: 0.82em; color: #6b7f96; margin-top: 2px; }
+  .item-pts {
+    white-space: nowrap;
+    font-weight: 700;
+    color: #0d5c8a;
+    font-size: 1.05em;
+  }
+  .total-row {
+    background: #0d5c8a;
+    color: white;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    font-size: 1.05em;
+  }
+  .warn-box {
+    background: #fff8e6;
+    border-left: 4px solid #f5a623;
+    padding: 10px 14px;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.83em;
+    color: #6b4f00;
+    margin-top: 10px;
+    line-height: 1.6;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 0.75em;
+    padding: 1px 7px;
+    border-radius: 8px;
+    margin-left: 6px;
+    font-weight: 700;
+    vertical-align: middle;
+  }
+  .tag-new { background: #d4edda; color: #155724; }
+  .tag-up  { background: #cce5ff; color: #004085; }
+  .tag-ko  { background: #ffe5d0; color: #7c2d00; }
+  /* 患者負担額テーブル */
+  .burden-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 0.9em;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .burden-table thead th {
+    background: #1a2e44;
+    color: white;
+    padding: 9px 12px;
+    text-align: center;
+    font-weight: 700;
+  }
+  .burden-table tbody td {
+    padding: 9px 12px;
+    text-align: center;
+    border-bottom: 1px solid #dde8f0;
+  }
+  .burden-table tbody tr:last-child td { border-bottom: none; }
+  .burden-table tbody tr:nth-child(odd) { background: #f0f6fc; }
+  .burden-table tbody tr:nth-child(even) { background: #ffffff; }
+  .burden-label {
+    font-weight: 700;
+    color: #1a2e44;
+  }
+  .burden-who {
+    font-size: 0.8em;
+    color: #6b7f96;
+  }
+  .burden-yen {
+    font-weight: 700;
+    font-size: 1.1em;
+    color: #0d5c8a;
+  }
+  .burden-yen.r3 { color: #b94040; }
+  .burden-yen.r2 { color: #e07a00; }
+  .burden-yen.r1 { color: #1a7a3a; }
+  .burden-note {
+    font-size: 0.78em;
+    color: #6b7f96;
+    margin-top: 5px;
+    text-align: right;
+  }
+  .footer {
+    background: #1a2e44;
+    color: #a0b4c8;
+    width: 100%;
+    max-width: 760px;
+    border-radius: 0 0 14px 14px;
+    padding: 14px 20px;
+    font-size: 0.75em;
+    line-height: 1.7;
+  }
+  .footer a { color: #6bb8e8; }
+  .restart-btn {
+    background: white;
+    border: 2px solid #0d5c8a;
+    color: #0d5c8a;
+    padding: 9px 22px;
+    border-radius: 22px;
+    cursor: pointer;
+    font-size: 0.88em;
+    font-weight: 700;
+    margin-top: 12px;
+    transition: all 0.2s;
+  }
+  .restart-btn:hover { background: #0d5c8a; color: white; }
+  .step-indicator {
+    font-size: 0.78em;
+    color: #6b7f96;
+    padding: 10px 20px 4px;
+    background: #f8fafc;
+    border-top: 1px solid #e8eef4;
+  }
+  @media (max-width: 600px) {
+    .bubble { max-width: 90%; }
+    .header h1 { font-size: 1.1em; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🦷 歯周病治療 算定チェッカー<span class="badge">令和8年度改定対応</span></h1>
+  <div class="sub">口腔管理体制強化加算（口管強）施設向け ／ 2026年6月施行版</div>
+</div>
+
+<div class="chat-container">
+  <div class="messages" id="messages"></div>
+  <div class="step-indicator" id="stepIndicator">ステップ 1 / 5</div>
+  <div class="options-area" id="optionsArea">
+    <div class="options-label">↓ 選択してください</div>
+    <div class="options-grid" id="optionsGrid"></div>
+  </div>
+</div>
+
+<div class="footer">
+  <strong>⚠️ ご注意：</strong>本ツールは令和8年度（2026年）歯科診療報酬改定の内容に基づく参考情報です。<br>
+  算定の最終判断は必ず厚生労働省の告示・通知・疑義解釈をご確認ください。<br>
+  参考：
+  <a href="https://www.mhlw.go.jp/stf/newpage_67729.html" target="_blank">厚生労働省 令和8年度診療報酬改定</a>
+</div>
+
+<script>
+// ─────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────
+const state = {
+  step: 0,
+  koukanKyo: false,   // 口管強あり
+  teeth: 0,           // 残存歯数（代表値）
+  age: '',            // 年齢区分
+  dm: false,          // 糖尿病
+  referral: false,    // 内科等から紹介
+  phase: '',          // 治療フェーズ
+  koukinou: false,    // 口腔機能管理
+  early_caries: false // 初期う蝕
+};
+
+// ─────────────────────────────────────
+//  STEPS DEFINITION
+// ─────────────────────────────────────
+const steps = [
+  // STEP 0
+  {
+    bot: '院長先生、こんにちは！\n令和8年度（2026年）改定後の歯周病治療算定をサポートします。\n\nまず確認です。貴院は <strong>「口腔管理体制強化加算（口管強）」</strong> を届け出ていますか？',
+    step: '1 / 5',
+    options: [
+      { label: '✅ 届出済み（口管強あり）', value: true, next: 1,
+        action: s => { s.koukanKyo = true; } },
+      { label: '❌ 届出なし', value: false, next: 1,
+        action: s => { s.koukanKyo = false; } }
+    ]
+  },
+  // STEP 1
+  {
+    bot: (s) => `了解です。${s.koukanKyo ? '<strong>口管強あり</strong>の施設として' : '<strong>口管強なし</strong>の施設として'}算定します。\n\n患者さんの<strong>残存歯数</strong>（対象歯数）を教えてください。`,
+    step: '2 / 5',
+    options: [
+      { label: '1〜9歯', value: 9,  next: 2, action: s => { s.teeth = 9; } },
+      { label: '10〜19歯', value: 19, next: 2, action: s => { s.teeth = 19; } },
+      { label: '20歯以上', value: 20, next: 2, action: s => { s.teeth = 20; } }
+    ]
+  },
+  // STEP 2
+  {
+    bot: '患者さんに<strong>糖尿病（DM）</strong>の既往・合併症がありますか？\n（重症化予防連携強化加算・歯科医療機関連携強化加算の判定に使います）',
+    step: '3 / 5',
+    options: [
+      { label: '✅ 糖尿病あり', value: true,  next: 3, action: s => { s.dm = true; } },
+      { label: '❌ 糖尿病なし', value: false, next: 3, action: s => { s.dm = false; } }
+    ]
+  },
+  // STEP 3
+  {
+    bot: (s) => s.dm
+      ? '内科等から<strong>紹介状を受けて来院</strong>した患者さんですか？\n（歯科医療機関連携強化加算 60点の判定に使います）'
+      : '現在の<strong>治療フェーズ</strong>を選んでください。',
+    step: '4 / 5',
+    options: (s) => {
+      if (s.dm) {
+        return [
+          { label: '✅ 内科等から紹介あり', value: true,  next: 4, action: s => { s.referral = true; } },
+          { label: '❌ 紹介状なし', value: false, next: 4, action: s => { s.referral = false; } }
+        ];
+      } else {
+        return [
+          { label: '🔵 歯周基本治療中（初期治療）', value: 'kihon', next: 4, action: s => { s.phase = 'kihon'; } },
+          { label: '🟢 歯周病継続支援治療（旧SPT/P重防）', value: 'spt', next: 4, action: s => { s.phase = 'spt'; } },
+          { label: '🟡 歯周精密検査（再評価）のみ', value: 'check', next: 4, action: s => { s.phase = 'check'; } }
+        ];
+      }
+    }
+  },
+  // STEP 4
+  {
+    bot: (s) => s.dm
+      ? '現在の<strong>治療フェーズ</strong>を選んでください。'
+      : '追加で算定する項目を選んでください（複数あれば「結果を見る」まで順に選択）。',
+    step: '5 / 5',
+    options: (s) => {
+      if (s.dm && !s.phase) {
+        return [
+          { label: '🔵 歯周基本治療中（初期治療）', value: 'kihon', next: 5, action: s => { s.phase = 'kihon'; } },
+          { label: '🟢 歯周病継続支援治療（旧SPT/P重防）', value: 'spt', next: 5, action: s => { s.phase = 'spt'; } },
+          { label: '🟡 歯周精密検査（再評価）のみ', value: 'check', next: 5, action: s => { s.phase = 'check'; } }
+        ];
+      } else {
+        return [
+          { label: '口腔機能管理を算定する', value: 'koukinou', next: 99, action: s => { s.koukinou = !s.koukinou; } },
+          { label: '初期う蝕管理料を算定する', value: 'early', next: 99, action: s => { s.early_caries = !s.early_caries; } },
+          { label: '📊 結果を見る →', value: 'result', next: 99, isResult: true }
+        ];
+      }
+    }
+  }
+];
+
+let currentStepIndex = 0;
+function addBotMsg(html) {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.innerHTML = `<div class="avatar">🤖</div><div class="bubble">${html.replace(/\n/g, '<br>')}</div>`;
+  msgs.appendChild(div); msgs.scrollTop = msgs.scrollHeight;
+}
+function addUserMsg(text) {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg user';
+  div.innerHTML = `<div class="avatar">👨‍⚕️</div><div class="bubble">${text}</div>`;
+  msgs.appendChild(div); msgs.scrollTop = msgs.scrollHeight;
+}
+function renderStep(idx) {
+  const s = steps[idx];
+  addBotMsg(typeof s.bot === 'function' ? s.bot(state) : s.bot);
+  document.getElementById('stepIndicator').textContent = 'ステップ ' + s.step;
+  const opts = typeof s.options === 'function' ? s.options(state) : s.options;
+  const grid = document.getElementById('optionsGrid');
+  grid.innerHTML = '';
+  opts.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn'; btn.textContent = opt.label;
+    btn.onclick = () => handleOption(opt, idx);
+    grid.appendChild(btn);
+  });
+}
+function handleOption(opt, stepIdx) {
+  addUserMsg(opt.label);
+  if (opt.action) opt.action(state);
+  if (stepIdx === 3 && state.dm && !state.phase) { renderStep(4); return; }
+  if (opt.isResult) { showResult(); return; }
+  const next = opt.next;
+  if (next === 99 && !opt.isResult) {
+    document.querySelectorAll('.opt-btn').forEach(b => { if (b.textContent === opt.label) b.classList.toggle('selected'); });
+    return;
+  }
+  if (next !== undefined && next < steps.length) { currentStepIndex = next; renderStep(next); }
+}
+function calcBurden(pts, ratio) { return Math.floor(pts * 10 * ratio / 10) * 10; }
+function buildBurdenTable(total) {
+  const fee = total * 10;
+  return `<div class="result-section" style="margin-top:10px;"><h3>💰 患者負担額（目安）</h3><table class="burden-table"><thead><tr><th>負担割合</th><th>主な対象</th><th>患者負担額（目安）</th></tr></thead><tbody><tr><td><span class="burden-label" style="color:#b94040;">3割負担</span></td><td><span class="burden-who">一般（70歳未満・現役世代）</span></td><td><span class="burden-yen r3">${calcBurden(total,0.3).toLocaleString()} 円</span></td></tr><tr><td><span class="burden-label" style="color:#e07a00;">2割負担</span></td><td><span class="burden-who">75歳以上（一定以上所得）<br>70～74歳（現役並み以外）</span></td><td><span class="burden-yen r2">${calcBurden(total,0.2).toLocaleString()} 円</span></td></tr><tr><td><span class="burden-label" style="color:#1a7a3a;">1割負担</span></td><td><span class="burden-who">後期高齢者（一般所得）<br>生活保護・低所得者等</span></td><td><span class="burden-yen r1">${calcBurden(total,0.1).toLocaleString()} 円</span></td></tr></tbody></table><div class="burden-note">※ 医療費 ${fee.toLocaleString()}円（${total}点×10円）・10円未満切り捨て</div></div>`;
+}
+function getTeethLabel() { return state.teeth<=9?'1～9歯':state.teeth<=19?'10～19歯':'20歯以上'; }
+function getSPTBase() { return state.teeth<=9?170:state.teeth<=19?200:350; }
+function showResult() {
+  document.getElementById('optionsArea').innerHTML='';
+  document.getElementById('stepIndicator').textContent='✅ 算定結果';
+  const items=[]; let total=0; const notes=[];
+  items.push({name:'歯科疾患管理料（歯管）',pts:state.koukanKyo?113:100,note:'月1回。口管強施設は若干の加算あり',tags:[]});
+  total+=state.koukanKyo?113:100;
+  if(state.phase==='spt'){const base=getSPTBase();const koAdd=state.koukanKyo?120:0;const pts=base+koAdd;
+    items.push({name:'歯周病継続支援治療（旧SPT・P重防統合）',pts,note:`${getTeethLabel()}：基本 ${base}点${state.koukanKyo?' + 口管強加算 +120点':''}　／　${state.koukanKyo?'月1回':'3月に1回'}算定`,tags:['new']});total+=pts;
+  }else if(state.phase==='kihon'){
+    items.push({name:'スケーリング（SC）',pts:72,note:'歯石除去。部位数により変動（参考値）',tags:[]});
+    items.push({name:'SRP（スケーリング・ルートプレーニング）',pts:224,note:'必要な部位のみ算定。歯数・部位により変動（参考値）',tags:[]});
+    total+=296; notes.push('🔵 歯周基本治療中はSC・SRP・P処置の点数は歯数・部位により変動します。');
+  }else if(state.phase==='check'){
+    items.push({name:'歯周組織検査（P精密検査）',pts:200,note:'4歯以上の再評価時。ポケット・出血・動揺を記録',tags:[]});total+=200;
+  }
+  if(state.dm){
+    items.push({name:'重症化予防連携強化加算',pts:100,note:'糖尿病患者に歯周病治療を行い医科と連携（月1回）。旧ハイリスク加算80点から増点',tags:['up']});total+=100;
+    if(state.referral){items.push({name:'歯科医療機関連携強化加算（新設）',pts:60,note:'内科等から紹介を受けた糖尿病患者に歯周病治療（年1回）',tags:['new']});total+=60;}
+  }
+  if(state.koukinou){
+    items.push({name:'口腔機能管理料',pts:90,note:'旧60点←90点に増点。口腔機能低下症・発達不全症の管理（月1回）',tags:['up']});total+=90;
+    items.push({name:'口腔機能実地指導料',pts:46,note:'研修修了歯科衛生士による指導・文書提供（月1回）。旧指導加算12点から独立',tags:['new']});total+=46;
+  }
+  if(state.early_caries&&state.koukanKyo){items.push({name:'エナメル質初期う蝕管理料+口管強加算',pts:78,note:'口管強施設のみ：基本30点+加算48点=78点',tags:['ko']});total+=78;}
+  else if(state.early_caries){items.push({name:'エナメル質初期う蝕管理料',pts:30,note:'口管強なし施設：基本30点のみ',tags:[]});total+=30;}
+  const tagH=t=>({new:'<span class="tag tag-new">新設</span>',up:'<span class="tag tag-up">増点</span>',ko:'<span class="tag tag-ko">口管強加算</span>'}[t]||'');
+  const rows=items.map(it=>`<div class="item-row"><div><div class="item-name">${it.name}${(it.tags||[]).map(tagH).join('')}</div><div class="item-note">${it.note}</div></div><div class="item-pts">${it.pts}点</div></div>`).join('');
+  const koStr=state.koukanKyo?'<span style="color:#e65c00;font-weight:700;">口管強あり</span>':'<span style="color:#555;font-weight:700;">口管強なし</span>';
+  const phL={kihon:'歯周基本治療中',spt:'歯周病継続支援治療',check:'歯周精密検査'}[state.phase]||'不明';
+  const html=`<strong>📋 推奨算定結果</strong>（参考）<br>施設：${koStr}　患者：${getTeethLabel()}／${state.dm?'糖尿病あり':'糖尿病なし'}／${phL}<div class="result-section" style="margin-top:12px;"><h3>💴 算定項目一覧</h3>${rows}<div class="total-row"><span>推奨合計（参考）</span><span>${total} 点　（医療費 ${(total*10).toLocaleString()} 円）</span></div></div>${buildBurdenTable(total)}${notes.map(n=>`<div class="warn-box">${n}</div>`).join('')}<div class="warn-box" style="margin-top:10px;">⚠️ 本結果は<strong>令和8年度改定（2026年6月施行）</strong>に基づく参考値です。<br>実際の算定は患者ごとの診察内容・告示・通知・疑義解釈をご確認ください。</div><br><button class="restart-btn" onclick="restart()">🔄 最初からやり直す</button>`;
+  const msgs=document.getElementById('messages');
+  const div=document.createElement('div'); div.className='msg bot';
+  div.innerHTML=`<div class="avatar">🤖</div><div class="bubble" style="max-width:96%;">${html}</div>`;
+  msgs.appendChild(div); msgs.scrollTop=msgs.scrollHeight;
+}
+function restart(){
+  Object.assign(state,{step:0,koukanKyo:false,teeth:0,age:'',dm:false,referral:false,phase:'',koukinou:false,early_caries:false});
+  document.getElementById('messages').innerHTML='';
+  document.getElementById('optionsArea').innerHTML='<div class="options-label">↓ 選択してください</div><div class="options-grid" id="optionsGrid"></div>';
+  currentStepIndex=0; renderStep(0);
+}
+window.onload=()=>{
+  addBotMsg('👋 <strong>歯周病治療 算定チェッカー（令和8年度改定版）</strong>へようこそ！\nSPT・P重防が「<strong>歯周病継続支援治療</strong>」に統合され、点数も変わりました。\n患者さんの状況を入力すると、推奨算定項目を自動計算します。');
+  setTimeout(()=>renderStep(0),600);
+};
+</script>
+</body>
+</html>
