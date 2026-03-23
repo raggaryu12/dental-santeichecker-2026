@@ -322,7 +322,10 @@ const state = {
   okkoatsu: false,    // 咬合圧検査（D011-3）
   zetsuatsu: false,   // 舌圧検査（D012）
   soshaku: false,     // 咀嚼能力検査（D011-2）
-  saibio: false       // 口腔細菌定量検査（D002-6）
+  saibio: false,      // 口腔細菌定量検査（D002-6）
+  pShinshitsu: false, // 歯周組織検査（精密）成人追加
+  child_zetsuatsu: false, // 小児：舌圧検査（D012）
+  child_rippuru: false    // 小児：口唇閉鎖力検査（りっぷる君）
 };
 
 // ─────────────────────────────────────
@@ -399,6 +402,10 @@ const steps = [
             action: s => { s.koukinou = !s.koukinou; } },
           { label: '初期う蝕管理料を算定する', value: 'early', next: 99,
             action: s => { s.early_caries = !s.early_caries; } },
+          ...(s.phase !== 'check' ? [
+            { label: '歯周病精密検査（再評価）を算定する', value: 'pShinshitsu', next: 99,
+              action: s => { s.pShinshitsu = !s.pShinshitsu; } }
+          ] : []),
           { label: '咬合圧検査（D011-3）を算定する', value: 'okkoatsu', next: 99,
             action: s => { s.okkoatsu = !s.okkoatsu; } },
           { label: '舌圧検査（D012）を算定する', value: 'zetsuatsu', next: 99,
@@ -436,12 +443,20 @@ const steps = [
             action: s => { s.child_flocal = !s.child_flocal; } },
           { label: 'エナメル質初期う蝕管理料を算定する', value: 'child_early', next: 99,
             action: s => { s.child_early = !s.child_early; } },
+          { label: '舌圧検査（D012）を算定する', value: 'child_zetsuatsu', next: 99,
+            action: s => { s.child_zetsuatsu = !s.child_zetsuatsu; } },
+          { label: '口唇閉鎖力検査（りっぷる君）を算定する', value: 'child_rippuru', next: 99,
+            action: s => { s.child_rippuru = !s.child_rippuru; } },
           { label: '📊 結果を見る →', value: 'result', next: 99, isResult: true }
         ];
       } else {
         return [
           { label: 'フッ化物歯面塗布を算定する', value: 'child_flocal', next: 99,
             action: s => { s.child_flocal = !s.child_flocal; } },
+          { label: '舌圧検査（D012）を算定する', value: 'child_zetsuatsu', next: 99,
+            action: s => { s.child_zetsuatsu = !s.child_zetsuatsu; } },
+          { label: '口唇閉鎖力検査（りっぷる君）を算定する', value: 'child_rippuru', next: 99,
+            action: s => { s.child_rippuru = !s.child_rippuru; } },
           { label: '📊 結果を見る →', value: 'result', next: 99, isResult: true }
         ];
       }
@@ -640,6 +655,26 @@ function showChildResult() {
       });
       total += earlyPts;
     }
+    // 舌圧検査（小児・ge10）
+    if (state.child_zetsuatsu) {
+      items.push({
+        name: '舌圧検査（D012）',
+        pts: 130,
+        note: '口腔機能発達不全症の評価。舌圧30kPa未満が低下の目安。病名併記要',
+        tags: []
+      });
+      total += 130;
+    }
+    // 口唇閉鎖力検査（小児・ge10）
+    if (state.child_rippuru) {
+      items.push({
+        name: '口唇閉鎖力検査（りっぷる君）',
+        pts: 100,
+        note: '口腔機能発達不全症の評価。口唇閉鎖力測定。病名併記要',
+        tags: ['new']
+      });
+      total += 100;
+    }
   } else {
     // 永久歯10本未満（混合歯列期）
     items.push({
@@ -666,6 +701,26 @@ function showChildResult() {
         tags: []
       });
       total += 130;
+    }
+    // 舌圧検査（小児・lt10）
+    if (state.child_zetsuatsu) {
+      items.push({
+        name: '舌圧検査（D012）',
+        pts: 130,
+        note: '口腔機能発達不全症の評価。舌圧30kPa未満が低下の目安。病名併記要',
+        tags: []
+      });
+      total += 130;
+    }
+    // 口唇閉鎖力検査（小児・lt10）
+    if (state.child_rippuru) {
+      items.push({
+        name: '口唇閉鎖力検査（りっぷる君）',
+        pts: 100,
+        note: '口腔機能発達不全症の評価。口唇閉鎖力測定。病名併記要',
+        tags: ['new']
+      });
+      total += 100;
     }
   }
 
@@ -718,7 +773,7 @@ function showChildResult() {
   const msgs = document.getElementById('messages');
   const div = document.createElement('div');
   div.className = 'msg bot';
-  div.innerHTML = `<div class="avatar">🤖</div><div class="bubble" style="max-width:96%;">${html}</div>`;
+  div.innerHTML = `<div class="avatar">🤖</div><div class="bubble" style="max-width:96%;">` + html + `</div>`;
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
 }
@@ -874,7 +929,18 @@ function showResult() {
     total += 70;
   }
 
-  // ── 6. 初期う蝕（口管強施設のみ）
+  // ── 6. 歯周病精密検査（再評価・追加算定）
+  if (state.pShinshitsu) {
+    items.push({
+      name: '歯周組織検査（精密）',
+      pts: 200,
+      note: '4歯以上の再評価時。ポケット・出血・動揺を記録',
+      tags: []
+    });
+    total += 200;
+  }
+
+  // ── 7. 初期う蝕（口管強施設のみ）
   if (state.early_caries && state.koukanKyo) {
     items.push({
       name: 'エナメル質初期う蝕管理料 + 口管強加算',
@@ -945,7 +1011,7 @@ function showResult() {
   const msgs = document.getElementById('messages');
   const div = document.createElement('div');
   div.className = 'msg bot';
-  div.innerHTML = `<div class="avatar">🤖</div><div class="bubble" style="max-width:96%;">${html}</div>`;
+  div.innerHTML = `<div class="avatar">🤖</div><div class="bubble" style="max-width:96%;">` + html + `</div>`;
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
 }
@@ -969,6 +1035,9 @@ function restart() {
   state.zetsuatsu = false;
   state.soshaku = false;
   state.saibio = false;
+  state.pShinshitsu = false;
+  state.child_zetsuatsu = false;
+  state.child_rippuru = false;
 
   document.getElementById('messages').innerHTML = '';
 
