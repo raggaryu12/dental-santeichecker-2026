@@ -310,11 +310,15 @@ const state = {
   koukanKyo: false,   // 口管強あり
   teeth: 0,           // 残存歯数（代表値）
   age: '',            // 年齢区分
+  isChild: false,     // 小児（16歳以下）
+  permTeeth: '',      // 小児：永久歯本数 'ge10' or 'lt10'
   dm: false,          // 糖尿病
   referral: false,    // 内科等から紹介
   phase: '',          // 治療フェーズ
   koukinou: false,    // 口腔機能管理
-  early_caries: false,// 初期う蝕
+  early_caries: false,// 初期う蝕（成人）
+  child_flocal: false,// 小児：F局/フッ素塗布
+  child_early: false, // 小児：エナメル初期う蝕（永久歯10本以上）
   okkoatsu: false,    // 咬合圧検査（D011-3）
   zetsuatsu: false,   // 舌圧検査（D012）
   soshaku: false,     // 咀嚼能力検査（D011-2）
@@ -325,10 +329,10 @@ const state = {
 //  STEPS DEFINITION
 // ─────────────────────────────────────
 const steps = [
-  // STEP 0
+  // STEP 0: 口管強
   {
     bot: '院長先生、こんにちは！\n令和8年度（2026年）改定後の歯周病治療算定をサポートします。\n\nまず確認です。貴院は <strong>「口腔管理体制強化加算（口管強）」</strong> を届け出ていますか？',
-    step: '1 / 5',
+    step: '1 / 6',
     options: [
       { label: '✅ 届出済み（口管強あり）', value: true, next: 1,
         action: s => { s.koukanKyo = true; } },
@@ -336,58 +340,69 @@ const steps = [
         action: s => { s.koukanKyo = false; } }
     ]
   },
-  // STEP 1
+  // STEP 1: 年齢区分（成人 or 小児）
   {
-    bot: (s) => `了解です。${s.koukanKyo ? '<strong>口管強あり</strong>の施設として' : '<strong>口管強なし</strong>の施設として'}算定します。\n\n患者さんの<strong>残存歯数</strong>（対象歯数）を教えてください。`,
-    step: '2 / 5',
+    bot: (s) => `了解です。${s.koukanKyo ? '<strong>口管強あり</strong>の施設として' : '<strong>口管強なし</strong>の施設として'}算定します。\n\n患者さんの<strong>年齢区分</strong>を教えてください。`,
+    step: '2 / 6',
     options: [
-      { label: '1〜9歯', value: 9,  next: 2, action: s => { s.teeth = 9; } },
-      { label: '10〜19歯', value: 19, next: 2, action: s => { s.teeth = 19; } },
-      { label: '20歯以上', value: 20, next: 2, action: s => { s.teeth = 20; } }
+      { label: '👤 成人（17歳以上）', value: 'adult', next: 2,
+        action: s => { s.isChild = false; } },
+      { label: '👶 小児（16歳以下・G病名）', value: 'child', next: 6,
+        action: s => { s.isChild = true; } }
     ]
   },
-  // STEP 2
+  // STEP 2: 残存歯数（成人）
+  {
+    bot: '患者さんの<strong>残存歯数</strong>（対象歯数）を教えてください。',
+    step: '3 / 6',
+    options: [
+      { label: '1〜9歯', value: 9,  next: 3, action: s => { s.teeth = 9; } },
+      { label: '10〜19歯', value: 19, next: 3, action: s => { s.teeth = 19; } },
+      { label: '20歯以上', value: 20, next: 3, action: s => { s.teeth = 20; } }
+    ]
+  },
+  // STEP 3: DM（成人）
   {
     bot: '患者さんに<strong>糖尿病（DM）</strong>の既往・合併症がありますか？\n（重症化予防連携強化加算・歯科医療機関連携強化加算の判定に使います）',
-    step: '3 / 5',
+    step: '4 / 6',
     options: [
-      { label: '✅ 糖尿病あり', value: true,  next: 3, action: s => { s.dm = true; } },
-      { label: '❌ 糖尿病なし', value: false, next: 3, action:s => { s.dm = false; } }
+      { label: '✅ 糖尿病あり', value: true,  next: 4, action: s => { s.dm = true; } },
+      { label: '❌ 糖尿病なし', value: false, next: 4, action: s => { s.dm = false; } }
     ]
   },
-  // STEP 3 (dm=trueのときのみ内科紹介を聞く、それ以外はskip)
+  // STEP 4: 紹介（DM時）/ フェーズ（非DM）
   {
     bot: (s) => s.dm
       ? '内科等から<strong>紹介状を受けて来院</strong>した患者さんですか？\n（歯科医療機関連携強化加算 60点の判定に使います）'
       : '現在の<strong>治療フェーズ</strong>を選んでください。',
-    step: '4 / 5',
+    step: '5 / 6',
     options: (s) => {
       if (s.dm) {
         return [
-          { label: '✅ 内科等から紹介あり', value: true,  next: 4, action: s => { s.referral = true; } },
-          { label: '❌ 紹介状なし', value: false, next: 4, action: s => { s.referral = false; } }
+          { label: '✅ 内科等から紹介あり', value: true,  next: 5, action: s => { s.referral = true; } },
+          { label: '❌ 紹介状なし', value: false, next: 5, action: s => { s.referral = false; } }
         ];
       } else {
         return [
-          { label: '🔵 歯周基本治療中（初期治療）', value: 'kihon', next: 4, action: s => { s.phase = 'kihon'; } },
-          { label: '🟢 歯周病継続支援治療（旧SPT/P重防）', value: 'spt', next: 4, action: s => { s.phase = 'spt'; } },
-          { label: '🟡 歯周精密検査（再評価）のみ', value: 'check', next: 4, action: s => { s.phase = 'check'; } }
+          { label: '🔵 歯周基本治療中（初期治療）', value: 'kihon', next: 5, action: s => { s.phase = 'kihon'; } },
+          { label: '🟢 歯周病継続支援治療（旧SPT/P重防）', value: 'spt', next: 5, action: s => { s.phase = 'spt'; } },
+          { label: '🟡 歯周精密検査（再評価）のみ', value: 'check', next: 5, action: s => { s.phase = 'check'; } }
         ];
       }
     }
   },
-  // STEP 4 (dm=trueの場合フェーズ選択、それ以外は追加項目)
+  // STEP 5: フェーズ選択（DM時）/ 追加項目（成人）
   {
     bot: (s) => (s.dm && !s.phase)
       ? '現在の<strong>治療フェーズ</strong>を選んでください。'
       : '追加で算定する項目を選んでください（複数あれば「結果を見る」まで順に選択）。',
-    step: '5 / 5',
+    step: '6 / 6',
     options: (s) => {
       if (s.dm && !s.phase) {
         return [
-          { label: '🔵 歯周基本治療中（初期治療）', value: 'kihon', next: 4, action: s => { s.phase = 'kihon'; } },
-          { label: '🟢 歯周病継続支援治療（旧SPT/P重防）', value: 'spt', next: 4, action: s => { s.phase = 'spt'; } },
-          { label: '🟡 歯周精密検査（再評価）のみ', value: 'check', next: 4, action: s => { s.phase = 'check'; } }
+          { label: '🔵 歯周基本治療中（初期治療）', value: 'kihon', next: 5, action: s => { s.phase = 'kihon'; } },
+          { label: '🟢 歯周病継続支援治療（旧SPT/P重防）', value: 'spt', next: 5, action: s => { s.phase = 'spt'; } },
+          { label: '🟡 歯周精密検査（再評価）のみ', value: 'check', next: 5, action: s => { s.phase = 'check'; } }
         ];
       } else {
         return [
@@ -403,6 +418,41 @@ const steps = [
             action: s => { s.soshaku = !s.soshaku; } },
           { label: '口腔細菌定量検査（D002-6）を算定する', value: 'saibio', next: 99,
             action: s => { s.saibio = !s.saibio; } },
+          { label: '📊 結果を見る →', value: 'result', next: 99, isResult: true }
+        ];
+      }
+    }
+  },
+  // STEP 6: 小児 永久歯本数
+  {
+    bot: '小児（16歳以下・G病名）の患者さんですね。\n\n現在の<strong>永久歯の本数</strong>を教えてください。',
+    step: '3 / 4',
+    options: [
+      { label: '🦷 永久歯10本以上', value: 'ge10', next: 7,
+        action: s => { s.permTeeth = 'ge10'; } },
+      { label: '🌱 永久歯10本未満（混合歯列期）', value: 'lt10', next: 7,
+        action: s => { s.permTeeth = 'lt10'; } }
+    ]
+  },
+  // STEP 7: 小児 追加項目
+  {
+    bot: (s) => s.permTeeth === 'ge10'
+      ? '追加で算定する項目を選んでください（複数あれば「結果を見る」まで順に選択）。'
+      : 'フッ化物歯面塗布を算定する場合は選択してください。',
+    step: '4 / 4',
+    options: (s) => {
+      if (s.permTeeth === 'ge10') {
+        return [
+          { label: 'フッ化物局所応用（F局）を算定する', value: 'child_flocal', next: 99,
+            action: s => { s.child_flocal = !s.child_flocal; } },
+          { label: 'エナメル質初期う蝕管理料を算定する', value: 'child_early', next: 99,
+            action: s => { s.child_early = !s.child_early; } },
+          { label: '📊 結果を見る →', value: 'result', next: 99, isResult: true }
+        ];
+      } else {
+        return [
+          { label: 'フッ化物歯面塗布を算定する', value: 'child_flocal', next: 99,
+            action: s => { s.child_flocal = !s.child_flocal; } },
           { label: '📊 結果を見る →', value: 'result', next: 99, isResult: true }
         ];
       }
@@ -463,10 +513,10 @@ function handleOption(opt, stepIdx) {
   const s = steps[stepIdx];
   const opts = typeof s.options === 'function' ? s.options(state) : s.options;
 
-  // phase selection for DM patients at step3
-  if (stepIdx === 3 && state.dm && state.referral !== undefined && !state.phase) {
+  // phase selection for DM patients at step4
+  if (stepIdx === 4 && state.dm && state.referral !== undefined && !state.phase) {
     // After referral question, show phase
-    renderStep(4);
+    renderStep(5);
     return;
   }
 
@@ -548,6 +598,143 @@ function buildBurdenTable(total) {
 }
 
 // ─────────────────────────────────────
+//  小児 算定結果
+// ─────────────────────────────────────
+function showChildResult() {
+  document.getElementById('optionsArea').innerHTML = '';
+  document.getElementById('stepIndicator').textContent = '✅ 算定結果（小児）';
+
+  const items = [];
+  let total = 0;
+  const notes = [];
+
+  // 1. 歯科疾患管理料
+  const kanri = state.koukanKyo ? 113 : 100;
+  items.push({
+    name: '歯科疾患管理料（歯管）',
+    pts: kanri,
+    note: '月1回。口管強施設：113点',
+    tags: []
+  });
+  total += kanri;
+
+  if (state.permTeeth === 'ge10') {
+    // 永久歯10本以上：P重防（歯周病継続支援治療）
+    const sptBase = 200; // 10〜19歯相当
+    const sptKo = state.koukanKyo ? 120 : 0;
+    const sptPts = sptBase + sptKo;
+    items.push({
+      name: '歯周病継続支援治療（P重防・10〜19歯相当）',
+      pts: sptPts,
+      note: `基本 ${sptBase}点${state.koukanKyo ? ' + 口管強加算 +120点' : ''}　／　${state.koukanKyo ? '月1回' : '3月に1回'}算定`,
+      tags: ['new']
+    });
+    total += sptPts;
+
+    if (state.child_flocal) {
+      items.push({
+        name: 'フッ化物局所応用（F局）',
+        pts: 130,
+        note: '小児フッ素予防処置。※点数は参考値（告示で確認要）',
+        tags: []
+      });
+      total += 130;
+    }
+
+    if (state.child_early) {
+      const earlyPts = state.koukanKyo ? 78 : 30;
+      items.push({
+        name: 'エナメル質初期う蝕管理料' + (state.koukanKyo ? ' + 口管強加算' : ''),
+        pts: earlyPts,
+        note: state.koukanKyo ? '基本30点 + 口管強加算48点 = 78点' : '30点（口管強なし）',
+        tags: state.koukanKyo ? ['ko'] : []
+      });
+      total += earlyPts;
+    }
+  } else {
+    // 永久歯10本未満（混合歯列期）
+    items.push({
+      name: '混合歯列期歯周組織検査',
+      pts: 80,
+      note: '混合歯列期のG病名患者。2026年改定対応（参考値：告示で確認要）',
+      tags: ['new']
+    });
+    total += 80;
+
+    items.push({
+      name: 'スケーリング（SC・再SC）',
+      pts: 72,
+      note: '歯石除去。部位数により変動（参考値）',
+      tags: []
+    });
+    total += 72;
+
+    if (state.child_flocal) {
+      items.push({
+        name: 'フッ化物歯面塗布',
+        pts: 130,
+        note: '小児フッ素予防処置。※点数は参考値（告示で確認要）',
+        tags: []
+      });
+      total += 130;
+    }
+  }
+
+  // BUILD HTML
+  const tagHtml = (tags) => {
+    return (tags||[]).map(t => {
+      if (t === 'new') return '<span class="tag tag-new">新設</span>';
+      if (t === 'up')  return '<span class="tag tag-up">増点</span>';
+      if (t === 'ko')  return '<span class="tag tag-ko">口管強加算</span>';
+    }).join('');
+  };
+
+  const rows = items.map(it => `
+    <div class="item-row">
+      <div>
+        <div class="item-name">${it.name}${tagHtml(it.tags)}</div>
+        <div class="item-note">${it.note}</div>
+      </div>
+      <div class="item-pts">${it.pts}点</div>
+    </div>`).join('');
+
+  const koStr = state.koukanKyo
+    ? '<span style="color:#e65c00;font-weight:700;">口管強あり</span>'
+    : '<span style="color:#555;font-weight:700;">口管強なし</span>';
+  const permLabel = state.permTeeth === 'ge10'
+    ? '永久歯10本以上'
+    : '永久歯10本未満（混合歯列期）';
+
+  const html = `
+    <strong>📋 推奨算定結果（小児）</strong>（参考）<br>
+    施設：${koStr}　患者：小児16歳以下・G病名／${permLabel}
+    <div class="result-section" style="margin-top:12px;">
+      <h3>💴 算定項目一覧</h3>
+      ${rows}
+      <div class="total-row">
+        <span>推奨合計（参考）</span>
+        <span>${total} 点　（医療費 ${(total * 10).toLocaleString()} 円）</span>
+      </div>
+    </div>
+    ${buildBurdenTable(total)}
+    <div class="warn-box" style="margin-top:10px;">
+      ⚠️ 本結果は<strong>令和8年度改定（2026年6月施行）</strong>に基づく参考値です。<br>
+      小児（16歳以下）G病名の算定例です。実際の算定は患者ごとの診察内容・告示・通知・疑義解釈をご確認ください。<br>
+      混合歯列期歯周組織検査の点数は確定告示でご確認ください。
+    </div>
+    <br>
+    <button class="restart-btn" onclick="restart()">🔄 最初からやり直す</button>
+  `;
+
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.innerHTML = `<div class="avatar">🤖</div><div class="bubble" style="max-width:96%;">${html}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// ─────────────────────────────────────
 //  CALCULATE & SHOW RESULT
 // ─────────────────────────────────────
 function getTeethLabel() {
@@ -563,6 +750,9 @@ function getSPTBase() {
 }
 
 function showResult() {
+  // 小児フローは専用関数へ
+  if (state.isChild) { showChildResult(); return; }
+
   document.getElementById('optionsArea').innerHTML = '';
   document.getElementById('stepIndicator').textContent = '✅ 算定結果';
 
@@ -777,11 +967,15 @@ function restart() {
   state.koukanKyo = false;
   state.teeth = 0;
   state.age = '';
+  state.isChild = false;
+  state.permTeeth = '';
   state.dm = false;
   state.referral = false;
   state.phase = '';
   state.koukinou = false;
   state.early_caries = false;
+  state.child_flocal = false;
+  state.child_early = false;
   state.okkoatsu = false;
   state.zetsuatsu = false;
   state.soshaku = false;
