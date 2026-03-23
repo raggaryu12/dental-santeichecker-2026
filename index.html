@@ -307,7 +307,7 @@
 // ─────────────────────────────────────
 const state = {
   step: 0,
-  koukanKyo: false,   // 口管強あり
+  koukanKyo: true,    // 口管強あり（届出済み前提）
   teeth: 0,           // 残存歯数（代表値）
   age: '',            // 年齢区分
   isChild: false,     // 小児（16歳以下）
@@ -329,80 +329,69 @@ const state = {
 //  STEPS DEFINITION
 // ─────────────────────────────────────
 const steps = [
-  // STEP 0: 口管強
+  // STEP 0: 年齢区分（成人 or 小児）
   {
-    bot: '院長先生、こんにちは！\n令和8年度（2026年）改定後の歯周病治療算定をサポートします。\n\nまず確認です。貴院は <strong>「口腔管理体制強化加算（口管強）」</strong> を届け出ていますか？',
-    step: '1 / 6',
+    bot: '院長先生、こんにちは！\n令和8年度（2026年）改定後の歯周病治療算定をサポートします。\n\n患者さんの<strong>年齢区分</strong>を教えてください。',
+    step: '1 / 5',
     options: [
-      { label: '✅ 届出済み（口管強あり）', value: true, next: 1,
-        action: s => { s.koukanKyo = true; } },
-      { label: '❌ 届出なし', value: false, next: 1,
-        action: s => { s.koukanKyo = false; } }
-    ]
-  },
-  // STEP 1: 年齢区分（成人 or 小児）
-  {
-    bot: (s) => `了解です。${s.koukanKyo ? '<strong>口管強あり</strong>の施設として' : '<strong>口管強なし</strong>の施設として'}算定します。\n\n患者さんの<strong>年齢区分</strong>を教えてください。`,
-    step: '2 / 6',
-    options: [
-      { label: '👤 成人（17歳以上）', value: 'adult', next: 2,
+      { label: '👤 成人（17歳以上）', value: 'adult', next: 1,
         action: s => { s.isChild = false; } },
-      { label: '👶 小児（16歳以下・G病名）', value: 'child', next: 6,
+      { label: '👶 小児（16歳以下・G病名）', value: 'child', next: 5,
         action: s => { s.isChild = true; } }
     ]
   },
-  // STEP 2: 残存歯数（成人）
+  // STEP 1: 残存歯数（成人）
   {
     bot: '患者さんの<strong>残存歯数</strong>（対象歯数）を教えてください。',
-    step: '3 / 6',
+    step: '2 / 5',
     options: [
-      { label: '1〜9歯', value: 9,  next: 3, action: s => { s.teeth = 9; } },
-      { label: '10〜19歯', value: 19, next: 3, action: s => { s.teeth = 19; } },
-      { label: '20歯以上', value: 20, next: 3, action: s => { s.teeth = 20; } }
+      { label: '1〜9歯', value: 9,  next: 2, action: s => { s.teeth = 9; } },
+      { label: '10〜19歯', value: 19, next: 2, action: s => { s.teeth = 19; } },
+      { label: '20歯以上', value: 20, next: 2, action: s => { s.teeth = 20; } }
     ]
   },
-  // STEP 3: DM（成人）
+  // STEP 2: DM（成人）
   {
     bot: '患者さんに<strong>糖尿病（DM）</strong>の既往・合併症がありますか？\n（重症化予防連携強化加算・歯科医療機関連携強化加算の判定に使います）',
-    step: '4 / 6',
+    step: '3 / 5',
     options: [
-      { label: '✅ 糖尿病あり', value: true,  next: 4, action: s => { s.dm = true; } },
-      { label: '❌ 糖尿病なし', value: false, next: 4, action: s => { s.dm = false; } }
+      { label: '✅ 糖尿病あり', value: true,  next: 3, action: s => { s.dm = true; } },
+      { label: '❌ 糖尿病なし', value: false, next: 3, action: s => { s.dm = false; } }
     ]
   },
-  // STEP 4: 紹介（DM時）/ フェーズ（非DM）
+  // STEP 3: 紹介（DM時）/ フェーズ（非DM）
   {
     bot: (s) => s.dm
       ? '内科等から<strong>紹介状を受けて来院</strong>した患者さんですか？\n（歯科医療機関連携強化加算 60点の判定に使います）'
       : '現在の<strong>治療フェーズ</strong>を選んでください。',
-    step: '5 / 6',
+    step: '4 / 5',
     options: (s) => {
       if (s.dm) {
         return [
-          { label: '✅ 内科等から紹介あり', value: true,  next: 5, action: s => { s.referral = true; } },
-          { label: '❌ 紹介状なし', value: false, next: 5, action: s => { s.referral = false; } }
+          { label: '✅ 内科等から紹介あり', value: true,  next: 4, action: s => { s.referral = true; } },
+          { label: '❌ 紹介状なし', value: false, next: 4, action: s => { s.referral = false; } }
         ];
       } else {
         return [
-          { label: '🔵 歯周基本治療中（初期治療）', value: 'kihon', next: 5, action: s => { s.phase = 'kihon'; } },
-          { label: '🟢 歯周病継続支援治療（旧SPT/P重防）', value: 'spt', next: 5, action: s => { s.phase = 'spt'; } },
-          { label: '🟡 歯周精密検査（再評価）のみ', value: 'check', next: 5, action: s => { s.phase = 'check'; } }
+          { label: '🔵 歯周基本治療中（初期治療）', value: 'kihon', next: 4, action: s => { s.phase = 'kihon'; } },
+          { label: '🟢 歯周病継続支援治療（旧SPT/P重防）', value: 'spt', next: 4, action: s => { s.phase = 'spt'; } },
+          { label: '🟡 歯周精密検査（再評価）のみ', value: 'check', next: 4, action: s => { s.phase = 'check'; } }
         ];
       }
     }
   },
-  // STEP 5: フェーズ選択（DM時）/ 追加項目（成人）
+  // STEP 4: フェーズ選択（DM時）/ 追加項目（成人）
   {
     bot: (s) => (s.dm && !s.phase)
       ? '現在の<strong>治療フェーズ</strong>を選んでください。'
       : '追加で算定する項目を選んでください（複数あれば「結果を見る」まで順に選択）。',
-    step: '6 / 6',
+    step: '5 / 5',
     options: (s) => {
       if (s.dm && !s.phase) {
         return [
-          { label: '🔵 歯周基本治療中（初期治療）', value: 'kihon', next: 5, action: s => { s.phase = 'kihon'; } },
-          { label: '🟢 歯周病継続支援治療（旧SPT/P重防）', value: 'spt', next: 5, action: s => { s.phase = 'spt'; } },
-          { label: '🟡 歯周精密検査（再評価）のみ', value: 'check', next: 5, action: s => { s.phase = 'check'; } }
+          { label: '🔵 歯周基本治療中（初期治療）', value: 'kihon', next: 4, action: s => { s.phase = 'kihon'; } },
+          { label: '🟢 歯周病継続支援治療（旧SPT/P重防）', value: 'spt', next: 4, action: s => { s.phase = 'spt'; } },
+          { label: '🟡 歯周精密検査（再評価）のみ', value: 'check', next: 4, action: s => { s.phase = 'check'; } }
         ];
       } else {
         return [
@@ -423,23 +412,23 @@ const steps = [
       }
     }
   },
-  // STEP 6: 小児 永久歯本数
+  // STEP 5: 小児 永久歯本数
   {
     bot: '小児（16歳以下・G病名）の患者さんですね。\n\n現在の<strong>永久歯の本数</strong>を教えてください。',
-    step: '3 / 4',
+    step: '2 / 3',
     options: [
-      { label: '🦷 永久歯10本以上', value: 'ge10', next: 7,
+      { label: '🦷 永久歯10本以上', value: 'ge10', next: 6,
         action: s => { s.permTeeth = 'ge10'; } },
-      { label: '🌱 永久歯10本未満（混合歯列期）', value: 'lt10', next: 7,
+      { label: '🌱 永久歯10本未満（混合歯列期）', value: 'lt10', next: 6,
         action: s => { s.permTeeth = 'lt10'; } }
     ]
   },
-  // STEP 7: 小児 追加項目
+  // STEP 6: 小児 追加項目
   {
     bot: (s) => s.permTeeth === 'ge10'
       ? '追加で算定する項目を選んでください（複数あれば「結果を見る」まで順に選択）。'
       : 'フッ化物歯面塗布を算定する場合は選択してください。',
-    step: '4 / 4',
+    step: '3 / 3',
     options: (s) => {
       if (s.permTeeth === 'ge10') {
         return [
@@ -513,10 +502,10 @@ function handleOption(opt, stepIdx) {
   const s = steps[stepIdx];
   const opts = typeof s.options === 'function' ? s.options(state) : s.options;
 
-  // phase selection for DM patients at step4
-  if (stepIdx === 4 && state.dm && state.referral !== undefined && !state.phase) {
+  // phase selection for DM patients at step3
+  if (stepIdx === 3 && state.dm && state.referral !== undefined && !state.phase) {
     // After referral question, show phase
-    renderStep(5);
+    renderStep(4);
     return;
   }
 
@@ -964,7 +953,7 @@ function showResult() {
 function restart() {
   // Reset state
   state.step = 0;
-  state.koukanKyo = false;
+  state.koukanKyo = true;  // 口管強あり（届出済み前提）
   state.teeth = 0;
   state.age = '';
   state.isChild = false;
